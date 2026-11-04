@@ -45,7 +45,7 @@ export default function App() {
       </aside>
 
       <main className="main-content" id="home">
-        <header className="topbar"><div className="breadcrumb">Workspace <span>/</span> <strong>Workflows</strong></div><div className="topbar-right"><span className="environment"><span /> Development</span><button className="icon-button" aria-label="Help"><CircleHelp size={18} /></button></div></header>
+        <header className="topbar"><div className="breadcrumb">Workspaces <span>/</span> <strong>Workflows</strong></div><div className="topbar-right"><span className="environment"><span /> Development</span><button className="icon-button" aria-label="Help"><CircleHelp size={18} /></button></div></header>
         <section className="page-content" id="workflows">
           <div className="eyebrow"><span className="eyebrow-line" /> AUTOMATION WORKSPACE</div>
           <div className="page-heading"><div><h1>Workflows</h1><p>Build, run, and monitor your automated workflows.</p></div><button className="primary-button" disabled title="Workflow creation is coming in the next milestone"><Plus size={17} /> New workflow <ArrowUpRight size={15} /></button></div>
