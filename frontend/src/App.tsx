@@ -53,7 +53,7 @@ export default function App() {
           <div className="stats-grid">
             <article className="stat-card"><div className="stat-top"><span>Total workflows</span><GitBranch size={17} /></div><div className="stat-value">0</div><div className="stat-foot">Your automations, in one place</div></article>
             <article className="stat-card"><div className="stat-top"><span>Executions today</span><Activity size={17} /></div><div className="stat-value">0</div><div className="stat-foot">Runs started in this workspace</div></article>
-            <article className="stat-card"><div className="stat-top"><span>Success rate</span><CheckCircle2 size={17} /></div><div className="stat-value">—</div><div className="stat-foot">Available after your first run</div></article>
+            <article className="stat-card"><div className="stat-top"><span>Success rates</span><CheckCircle2 size={17} /></div><div className="stat-value">—</div><div className="stat-foot">Available after your first run</div></article>
           </div>
 
           <section className="workflow-panel">
