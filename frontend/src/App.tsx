@@ -4,7 +4,7 @@ import { Activity, ArrowUpRight, Blocks, Bot, CheckCircle2, CircleHelp, GitBranc
 type HealthStatus = 'checking' | 'online' | 'offline';
 
 export default function App() {
-  const [health, setHealth] = useState<HealthStatus>('checking');
+  const [health, setHealth] = useState<HealthStatus>('checking the health ');
 
   useEffect(() => {
     const controller = new AbortController();
