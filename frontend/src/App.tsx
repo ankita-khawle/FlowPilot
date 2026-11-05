@@ -4,7 +4,7 @@ import { Activity, ArrowUpRight, Blocks, Bot, CheckCircle2, CircleHelp, GitBranc
 type HealthStatus = 'checking' | 'online' | 'offline';
 
 export default function App() {
-  const [health, setHealth] = useState<HealthStatus>('checking the health ');
+  const [health, setHealth] = useState<HealthStatus>('checking');
 
   useEffect(() => {
     const controller = new AbortController();
@@ -30,7 +30,7 @@ export default function App() {
           <span className="brand-mark"><Workflow size={21} /></span>
           <span>flowpilot<span className="brand-period">.</span></span>
         </a>
-        <div className="workspace-label">WORKSPACE</div>
+        <div className="workspace-label">WORKSPACES</div>
         <nav aria-label="Main navigation">
           <a className="nav-item active" href="#workflows"><GitBranch size={17} /> Workflows <span className="nav-count">0</span></a>
           <a className="nav-item" href="#executions"><Activity size={17} /> Executions</a>
