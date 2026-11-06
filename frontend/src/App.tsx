@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Activity, ArrowUpRight, Blocks, Bot, CheckCircle2, CircleHelp, GitBranch, Plus, Workflow } from 'lucide-react';
-
+import DocumentSummary from './components/DocumentSummary';
 type HealthStatus = 'checking' | 'online' | 'offline';
 
 export default function App() {
@@ -55,7 +55,7 @@ export default function App() {
             <article className="stat-card"><div className="stat-top"><span>Executions today</span><Activity size={17} /></div><div className="stat-value">0</div><div className="stat-foot">Runs started in this workspace</div></article>
             <article className="stat-card"><div className="stat-top"><span>Success rates</span><CheckCircle2 size={17} /></div><div className="stat-value">—</div><div className="stat-foot">Available after your first run</div></article>
           </div>
-
+          <DocumentSummary />
           <section className="workflow-panel">
             <div className="panel-heading"><div><h2>Your workflows</h2><p>Reusable automations created in this workspace</p></div><span className="count-pill">0 workflows</span></div>
             <div className="empty-state"><div className="empty-art"><div className="art-node node-trigger"><Activity size={18} /></div><div className="art-connector connector-one" /><div className="art-node node-ai"><Bot size={20} /></div><div className="art-connector connector-two" /><div className="art-node node-action"><CheckCircle2 size={19} /></div><div className="art-spark spark-one">✳</div><div className="art-spark spark-two">✳</div></div><h3>Your next great workflow starts here</h3><p>Connect a trigger, add steps, and let FlowPilot handle the busywork. Your workflows will appear here once creation is available.</p><button className="secondary-button" disabled> <Plus size={16} /> Create your first workflow</button><span className="coming-soon">Workflow editor · Coming in the next milestone</span></div>
