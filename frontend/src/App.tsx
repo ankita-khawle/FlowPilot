@@ -1,68 +1,123 @@
-import { useEffect, useState } from 'react';
-import { Activity, ArrowUpRight, Blocks, Bot, CheckCircle2, CircleHelp, GitBranch, Plus, Workflow } from 'lucide-react';
-import DocumentSummary from './components/DocumentSummary';
-type HealthStatus = 'checking' | 'online' | 'offline';
+
+import { useState } from 'react';
+import { Sparkles, Workflow } from 'lucide-react';
+
+import DocumentUpload from './components/DocumentUpload';
+import SummaryPreferences from './components/SummaryPreferences';
+import SummaryResult from './components/SummaryResult';
+import { summarizeDocument } from './services/documentService';
+
+export type SummaryTone =
+  | 'professional'
+  | 'casual'
+  | 'technical'
+  | 'executive';
+
+export type SummaryLength = 'short' | 'medium' | 'detailed';
+
+export interface SummaryResponse {
+  summary: string;
+  extracted_data?: Record<string, unknown>;
+}
 
 export default function App() {
-  const [health, setHealth] = useState<HealthStatus>('checking');
+  const [file, setFile] = useState<File | null>(null);
+  const [tone, setTone] = useState<SummaryTone>('professional');
+  const [length, setLength] = useState<SummaryLength>('medium');
+  const [result, setResult] = useState<SummaryResponse | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  useEffect(() => {
-    const controller = new AbortController();
+  const handleProcess = async () => {
+    if (!file || loading) return;
 
-    fetch('/api/health', { signal: controller.signal })
-      .then((response) => {
-        if (!response.ok) throw new Error('API health check failed');
-        return response.json();
-      })
-      .then(() => setHealth('online'))
-      .catch((error: unknown) => {
-        if (error instanceof Error && error.name === 'AbortError') return;
-        setHealth('offline');
+    setLoading(true);
+    setError('');
+    setResult(null);
+
+    try {
+      const response = await summarizeDocument({
+        file,
+        tone,
+        length,
       });
 
-    return () => controller.abort();
-  }, []);
+      setResult(response);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Unable to process document.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <div className="app-shell">
-      <aside className="sidebar">
-        <a className="brand" href="#home" aria-label="FlowPilot home">
-          <span className="brand-mark"><Workflow size={21} /></span>
+    <main className="app-shell">
+      <header className="app-header">
+        <a className="brand" href="#home">
+          <span className="brand-mark">
+            <Workflow size={21} />
+          </span>
           <span>flowpilot<span className="brand-period">.</span></span>
         </a>
-        <div className="workspace-label">WORKSPACES</div>
-        <nav aria-label="Main navigation">
-          <a className="nav-item active" href="#workflows"><GitBranch size={17} /> Workflows <span className="nav-count">0</span></a>
-          <a className="nav-item" href="#executions"><Activity size={17} /> Executions</a>
-          <a className="nav-item" href="#integrations"><Blocks size={17} /> Integrations</a>
-          <a className="nav-item" href="#ai-steps"><Bot size={17} /> AI steps</a>
-        </nav>
-        <div className="sidebar-bottom">
-          <div className="api-status"><span className={`status-dot ${health}`} /> <span>API {health === 'checking' ? 'checking' : health}</span></div>
-          <a className="nav-item" href="#help"><CircleHelp size={17} /> Documentation</a>
-          <div className="profile"><div className="avatar">FP</div><div><strong>FlowPilot workspace</strong><span>Developer plan</span></div></div>
-        </div>
-      </aside>
 
-      <main className="main-content" id="home">
-        <header className="topbar"><div className="breadcrumb">Workspaces <span>/</span> <strong>Workflows</strong></div><div className="topbar-right"><span className="environment"><span /> Development</span><button className="icon-button" aria-label="Help"><CircleHelp size={18} /></button></div></header>
-        <section className="page-content" id="workflows">
-          <div className="eyebrow"><span className="eyebrow-line" /> AUTOMATION WORKSPACE</div>
-          <div className="page-heading"><div><h1>Workflows</h1><p>Build, run, and monitor your automated workflows.</p></div><button className="primary-button" disabled title="Workflow creation is coming in the next milestone"><Plus size={17} /> New workflow <ArrowUpRight size={15} /></button></div>
+        <span className="header-label">
+          <Sparkles size={15} />
+          AI DOCUMENT INTELLIGENCE
+        </span>
+      </header>
 
-          <div className="stats-grid">
-            <article className="stat-card"><div className="stat-top"><span>Total workflows</span><GitBranch size={17} /></div><div className="stat-value">0</div><div className="stat-foot">Your automations, in one place</div></article>
-            <article className="stat-card"><div className="stat-top"><span>Executions today</span><Activity size={17} /></div><div className="stat-value">0</div><div className="stat-foot">Runs started in this workspace</div></article>
-            <article className="stat-card"><div className="stat-top"><span>Success rates</span><CheckCircle2 size={17} /></div><div className="stat-value">—</div><div className="stat-foot">Available after your first run</div></article>
+      <section className="dashboard" id="home">
+        <div className="page-heading">
+          <div>
+            <span className="eyebrow">DOCUMENT WORKSPACE</span>
+            <h1>Document Summarizer</h1>
+            <p>
+              Extract information and generate summaries
+              tailored to your needs.
+            </p>
           </div>
-          <DocumentSummary />
-          <section className="workflow-panel">
-            <div className="panel-heading"><div><h2>Your workflows</h2><p>Reusable automations created in this workspace</p></div><span className="count-pill">0 workflows</span></div>
-            <div className="empty-state"><div className="empty-art"><div className="art-node node-trigger"><Activity size={18} /></div><div className="art-connector connector-one" /><div className="art-node node-ai"><Bot size={20} /></div><div className="art-connector connector-two" /><div className="art-node node-action"><CheckCircle2 size={19} /></div><div className="art-spark spark-one">✳</div><div className="art-spark spark-two">✳</div></div><h3>Your next great workflow starts here</h3><p>Connect a trigger, add steps, and let FlowPilot handle the busywork. Your workflows will appear here once creation is available.</p><button className="secondary-button" disabled> <Plus size={16} /> Create your first workflow</button><span className="coming-soon">Workflow editor · Coming in the next milestone</span></div>
-          </section>
-          <footer className="page-footer"><span>FlowPilot <span className="footer-dot">●</span> Early development</span><span>Built for reliable automation</span></footer>
-        </section>
-      </main>
-    </div>
+        </div>
+
+        <DocumentUpload
+          file={file}
+          onFileChange={(nextFile) => {
+            setFile(nextFile);
+            setResult(null);
+            setError('');
+          }}
+        />
+
+        <SummaryPreferences
+          tone={tone}
+          length={length}
+          onToneChange={setTone}
+          onLengthChange={setLength}
+        />
+
+        <button
+          className="primary-button process-button"
+          disabled={!file || loading}
+          onClick={handleProcess}
+        >
+          <Sparkles size={17} />
+          {loading ? 'Processing document...' : 'Generate summary'}
+        </button>
+
+        {error && (
+          <div className="document-error" role="alert">
+            {error}
+          </div>
+        )}
+
+        <SummaryResult
+          result={result}
+          loading={loading}
+        />
+      </section>
+    </main>
   );
 }
