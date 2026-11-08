@@ -124,6 +124,11 @@ func documentSummarize(processor DocumentProcessor) http.HandlerFunc {
 				"Please upload a document using the 'file' field")
 			return
 		}
+		if header.Size > maxUploadSize {
+			writeError(w, http.StatusRequestEntityTooLarge,
+				"File exceeds the maximum allowed size of 10 MB")
+			return
+		}
 		defer file.Close()
 
 		extension := strings.ToLower(filepath.Ext(header.Filename))
