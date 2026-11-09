@@ -1,61 +1,78 @@
-# FlowPilot
+# FlowPilot 🚀
 
-**AI-powered workflow and integration platform** — a portfolio project exploring reliable asynchronous execution, visual workflow design, and AI-assisted document processing.
+**Upload a document. Let AI do the reading. Get the insights without the boring bits.**
 
-> Status: early development. Features described in the roadmap are planned until implemented and tested.
+FlowPilot is an AI-powered document intelligence platform that uses Large Language Models (LLMs) and Retrieval-Augmented Generation (RAG) to analyse uploaded documents, extract meaningful information, and generate contextual summaries in a quirky, engaging tone.
 
-## Product vision
+Instead of reading lengthy documents from beginning to end, users can upload a file and let FlowPilot identify important information, understand context, and present the key takeaways in a more enjoyable and accessible way.
 
-FlowPilot lets a user define a workflow made of triggers, processing steps, conditions, and actions. It executes workflows asynchronously and provides a traceable history so users can understand successes, failures, and retries.
+## ✨ What FlowPilot Does
 
-## Planned stack
+- **Document Upload:** Upload PDF, DOCX, and TXT documents.
+- **AI-Powered Analysis:** Use LLMs to understand document content and identify important information.
+- **RAG-Based Context Retrieval:** Retrieve relevant document sections to provide context-aware and grounded responses.
+- **Quirky AI Summaries:** Generate engaging summaries that explain complex or lengthy content in a fun, conversational tone.
+- **Structured Data Extraction:** Extract important entities, dates, figures, decisions, and other relevant information.
+- **Source Citations:** Link generated insights to their original document sections or page references for traceability.
+- **Customisable Summaries:** Choose the tone and summary length based on your preferences.
 
-- **Frontend:** React, TypeScript, Vite, React Flow
-- **Backend:** Go, REST API
-- **Persistence:** PostgreSQL
-- **Asynchronous jobs:** Redis-backed queue and Go worker pool
-- **Testing:** Go test, Vitest, React Testing Library, integration tests
-- **Local development:** Docker Compose
-- **Delivery:** GitHub Actions and a deployable demo
+## 🧠 How It Works
 
-The first version will use a modular monolith. Separate services will only be introduced if a demonstrated scaling or ownership need justifies them.
+1. **Upload:** Select a document to analyse.
+2. **Extract:** Extract text and relevant content from the uploaded file.
+3. **Index:** Split the document into meaningful chunks and generate embeddings for retrieval.
+4. **Retrieve:** Use RAG to identify relevant sections based on the analysis task.
+5. **Analyse:** Send the retrieved context to an LLM for summarisation and structured data extraction.
+6. **Generate:** Produce a quirky, easy-to-understand summary with supporting citations.
+7. **Review:** View the summary, extracted information, and source references.
 
-## Initial scope
+## 🛠️ Tech Stack
 
-1. Create and edit workflow definitions.
-2. Run a small set of workflow step types asynchronously.
-3. Track each execution and its step-level status.
-4. Retry eligible failures safely and make duplicate effects less likely through idempotency controls.
-5. Inspect execution history and diagnostic logs.
-6. Add one AI-powered document-processing workflow with structured output and an approval step.
+| Layer | Technology |
+|---|---|
+| Frontend | React, TypeScript, Vite |
+| Backend | Go |
+| AI | Large Language Models (LLMs) |
+| Retrieval | RAG, embeddings, vector search |
+| Document Processing | PDF, DOCX, TXT extraction |
+| API | REST |
+| Future storage | PostgreSQL, vector database |
 
-## Development principles
-
-- Ship in small, reviewable increments.
-- Keep the database as the source of truth for workflow and execution history.
-- Make failure paths observable and test them deliberately.
-- Never log credentials or unredacted secrets.
-- Document measured performance only after running reproducible benchmarks.
-
-## Repository layout (planned)
+## 🏗️ Project Structure
 
 ```text
-flowpilot/
-├── backend/       # Go API, domain logic, worker and tests
-├── frontend/      # React + TypeScript application
-├── deploy/        # Local and deployment configuration
-├── docs/          # Architecture, decisions and development notes
-└── .github/       # CI workflows
+FlowPilot/
+├── backend/
+│   ├── cmd/
+│   └── internal/
+│       ├── httpapi/
+│       └── documents/
+│           ├── extractor.go
+│           ├── processor.go
+│           └── llm.go
+│
+├── frontend/
+│   └── src/
+│       ├── components/
+│       ├── services/
+│       ├── types/
+│       └── App.tsx
+│
+└── README.md
 ```
 
-## Local development
+## 🚧 Development Status
 
-The application scaffold is not implemented yet. Follow the commit history and roadmap as features are added. Setup instructions will be added with the first runnable backend and frontend commits.
+FlowPilot is actively under development.
 
-## Roadmap
+The initial milestone focuses on document upload, AI-powered analysis, structured extraction, and contextual summaries. RAG-based retrieval, source-grounded citations, and additional document intelligence capabilities will be developed incrementally.
 
-See [docs/roadmap.md](docs/roadmap.md) for the incremental implementation plan and intended commit sequence. See [docs/architecture.md](docs/architecture.md) for initial architecture and reliability decisions.
+## 🎯 Vision
 
-## License
+Make document analysis less like reading a 50-page report and more like having a smart, slightly quirky colleague explain what actually matters.
 
-The project license will be selected before public release.
+**Less reading. More understanding. A little more personality.**
+
+---
+
+*FlowPilot — Your documents, decoded by AI.*
