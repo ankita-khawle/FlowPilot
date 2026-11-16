@@ -9,9 +9,14 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"flowpilot/backend/internal/document"
 )
 
-const maxUploadSize = 10 << 20 // 10 MB
+const (
+	maxUploadSize  = 10 << 20 // 10 MB
+	maxRequestSize = maxUploadSize + (1 << 20)
+)
 
 type healthResponse struct {
 	Status    string `json:"status"`
@@ -19,6 +24,19 @@ type healthResponse struct {
 	Timestamp string `json:"timestamp"`
 }
 
+type errorResponse struct {
+	Error string `json:"error"`
+}
+
+type DocumentExtractor interface {
+	Extract(
+		ctx context.Context,
+		fileName string,
+		content []byte,
+	) (document.Document, error)
+}
+
+// Retain these types for the existing summarization API.
 type SummaryTone string
 type SummaryLength string
 
@@ -33,13 +51,11 @@ const (
 	LengthDetailed SummaryLength = "detailed"
 )
 
-// Citation identifies the source of an extracted fact or summary statement.
-// The document processor should populate page numbers and excerpts when available.
 type Citation struct {
-	Source  string `json:"source"`
-	Page    *int   `json:"page,omitempty"`
-	Quote   string `json:"quote,omitempty"`
-	Field   string `json:"field,omitempty"`
+	Source string `json:"source"`
+	Page   *int   `json:"page,omitempty"`
+	Quote  string `json:"quote,omitempty"`
+	Field  string `json:"field,omitempty"`
 }
 
 type ExtractedDocument struct {
@@ -48,15 +64,13 @@ type ExtractedDocument struct {
 }
 
 type DocumentSummaryResponse struct {
-	FileName     string           `json:"file_name"`
-	Summary      string           `json:"summary"`
+	FileName      string            `json:"file_name"`
+	Summary       string            `json:"summary"`
 	ExtractedData ExtractedDocument `json:"extracted_data"`
-	Citations    []Citation       `json:"citations"`
+	Citations     []Citation        `json:"citations"`
 }
 
 type DocumentProcessor interface {
-	// SummarizeDocument should extract text from the uploaded file,
-	// call the LLM, and return structured data with source citations.
 	SummarizeDocument(
 		ctx context.Context,
 		fileName string,
@@ -67,22 +81,42 @@ type DocumentProcessor interface {
 	) (DocumentSummaryResponse, error)
 }
 
-type errorResponse struct {
-	Error string `json:"error"`
-}
-
-// NewRouter builds the HTTP handler without a document processor.
-// The document endpoint returns 503 until a processor is configured.
+// NewRouter configures the default document parser.
 func NewRouter() http.Handler {
-	return NewRouterWithDocumentProcessor(nil)
+	return NewRouterWithServices(
+		document.NewService(document.NewParser()),
+		nil,
+	)
 }
 
-// NewRouterWithDocumentProcessor builds the HTTP handler with document processing.
-func NewRouterWithDocumentProcessor(processor DocumentProcessor) http.Handler {
+// Retain compatibility with the existing document processor.
+func NewRouterWithDocumentProcessor(
+	processor DocumentProcessor,
+) http.Handler {
+	return NewRouterWithServices(
+		document.NewService(document.NewParser()),
+		processor,
+	)
+}
+
+func NewRouterWithServices(
+	extractor DocumentExtractor,
+	processor DocumentProcessor,
+) http.Handler {
+
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /api/health", health)
-	mux.HandleFunc("POST /api/documents/summarize", documentSummarize(processor))
+
+	mux.HandleFunc(
+		"POST /api/documents",
+		documentUpload(extractor),
+	)
+
+	mux.HandleFunc(
+		"POST /api/documents/summarize",
+		documentSummarize(processor),
+	)
 
 	return mux
 }
@@ -95,59 +129,79 @@ func health(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func documentSummarize(processor DocumentProcessor) http.HandlerFunc {
+func documentUpload(
+	extractor DocumentExtractor,
+) http.HandlerFunc {
+
 	return func(w http.ResponseWriter, r *http.Request) {
-		if processor == nil {
-			writeError(w, http.StatusServiceUnavailable,
-				"Document processing service is not configured")
+
+		if extractor == nil {
+			writeError(
+				w,
+				http.StatusServiceUnavailable,
+				"Document extraction service is not configured",
+			)
 			return
 		}
 
-		r.Body = http.MaxBytesReader(w, r.Body, maxUploadSize+(1<<20))
+		fileName, content, status, err := readUploadedDocument(w, r)
+		if err != nil {
+			writeError(w, status, err.Error())
+			return
+		}
 
-		if err := r.ParseMultipartForm(maxUploadSize); err != nil {
-			var maxBytesErr *http.MaxBytesError
-			if errors.As(err, &maxBytesErr) {
-				writeError(w, http.StatusRequestEntityTooLarge,
-					"Upload exceeds the maximum allowed size of 10 MB")
-				return
+		result, err := extractor.Extract(
+			r.Context(),
+			fileName,
+			content,
+		)
+
+		if err != nil {
+			switch {
+			case errors.Is(err, document.ErrUnsupportedFormat):
+				writeError(w, http.StatusBadRequest, "Unsupported file type")
+
+			case errors.Is(err, document.ErrInvalidDocument):
+				writeError(w, http.StatusBadRequest, "Invalid or corrupted document")
+
+			case errors.Is(err, document.ErrEmptyDocument):
+				writeError(w, http.StatusUnprocessableEntity, "No extractable text found in document")
+
+			case errors.Is(err, document.ErrDocumentTooLarge):
+				writeError(w, http.StatusRequestEntityTooLarge, "Document exceeds extraction limits")
+
+			case errors.Is(err, context.Canceled):
+				writeError(w, http.StatusRequestTimeout, "Document processing was cancelled")
+
+			default:
+				writeError(w, http.StatusInternalServerError, "Failed to extract document content")
 			}
 
-			writeError(w, http.StatusBadRequest,
-				"Invalid multipart form")
 			return
 		}
 
-		file, header, err := r.FormFile("file")
+		writeJSON(w, http.StatusOK, result)
+	}
+}
+
+func documentSummarize(
+	processor DocumentProcessor,
+) http.HandlerFunc {
+
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		if processor == nil {
+			writeError(
+				w,
+				http.StatusServiceUnavailable,
+				"Document processing service is not configured",
+			)
+			return
+		}
+
+		fileName, content, status, err := readUploadedDocument(w, r)
 		if err != nil {
-			writeError(w, http.StatusBadRequest,
-				"Please upload a document using the 'file' field")
-			return
-		}
-		if header.Size > maxUploadSize {
-			writeError(w, http.StatusRequestEntityTooLarge,
-				"File exceeds the maximum allowed size of 10 MB")
-			return
-		}
-		defer file.Close()
-
-		extension := strings.ToLower(filepath.Ext(header.Filename))
-		if !isSupportedDocument(extension) {
-			writeError(w, http.StatusBadRequest,
-				"Unsupported file type. Upload a PDF, DOCX, or TXT file")
-			return
-		}
-
-		content, err := io.ReadAll(file)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError,
-				"Could not read uploaded document")
-			return
-		}
-
-		if len(content) == 0 {
-			writeError(w, http.StatusBadRequest,
-				"The uploaded document is empty")
+			writeError(w, status, err.Error())
 			return
 		}
 
@@ -155,44 +209,111 @@ func documentSummarize(processor DocumentProcessor) http.HandlerFunc {
 		length := SummaryLength(r.FormValue("length"))
 
 		if !isValidTone(tone) {
-			writeError(w, http.StatusBadRequest,
-				"Invalid tone. Use professional, casual, technical, or executive")
+			writeError(w, http.StatusBadRequest, "Invalid summary tone")
 			return
 		}
 
 		if !isValidLength(length) {
-			writeError(w, http.StatusBadRequest,
-				"Invalid length. Use short, medium, or detailed")
+			writeError(w, http.StatusBadRequest, "Invalid summary length")
 			return
-		}
-
-		contentType := header.Header.Get("Content-Type")
-		if contentType == "" {
-			contentType = http.DetectContentType(content)
 		}
 
 		result, err := processor.SummarizeDocument(
 			r.Context(),
-			header.Filename,
-			contentType,
+			fileName,
+			detectContentType(filepath.Ext(fileName)),
 			content,
 			tone,
 			length,
 		)
+
 		if err != nil {
-			writeError(w, http.StatusInternalServerError,
-				"Failed to process document")
+			writeError(w, http.StatusInternalServerError, "Failed to process document")
 			return
 		}
 
-		result.FileName = header.Filename
+		result.FileName = fileName
 
 		writeJSON(w, http.StatusOK, result)
 	}
 }
 
+func readUploadedDocument(
+	w http.ResponseWriter,
+	r *http.Request,
+) (string, []byte, int, error) {
+
+	r.Body = http.MaxBytesReader(w, r.Body, maxRequestSize)
+
+	if err := r.ParseMultipartForm(1 << 20); err != nil {
+		var maxBytesErr *http.MaxBytesError
+
+		if errors.As(err, &maxBytesErr) {
+			return "", nil, http.StatusRequestEntityTooLarge,
+				errors.New("request exceeds the maximum allowed size")
+		}
+
+		return "", nil, http.StatusBadRequest,
+			errors.New("invalid multipart form")
+	}
+
+	if r.MultipartForm != nil {
+		defer r.MultipartForm.RemoveAll()
+	}
+
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		return "", nil, http.StatusBadRequest,
+			errors.New("upload a document using the 'file' field")
+	}
+	defer file.Close()
+
+	fileName := strings.TrimSpace(
+		strings.ReplaceAll(header.Filename, "\\", "/"),
+	)
+
+	fileName = filepath.Base(fileName)
+
+	if fileName == "" || fileName == "." {
+		return "", nil, http.StatusBadRequest,
+			errors.New("invalid filename")
+	}
+
+	extension := strings.ToLower(filepath.Ext(fileName))
+
+	if !isSupportedDocument(extension) {
+		return "", nil, http.StatusBadRequest,
+			errors.New("unsupported file type. Upload PDF, DOCX, or TXT")
+	}
+
+	if header.Size > maxUploadSize {
+		return "", nil, http.StatusRequestEntityTooLarge,
+			errors.New("file exceeds the maximum allowed size of 10 MB")
+	}
+
+	content, err := io.ReadAll(
+		io.LimitReader(file, maxUploadSize+1),
+	)
+	if err != nil {
+		return "", nil, http.StatusBadRequest,
+			errors.New("could not read uploaded document")
+	}
+
+	if len(content) == 0 {
+		return "", nil, http.StatusBadRequest,
+			errors.New("uploaded document is empty")
+	}
+
+	if len(content) > maxUploadSize {
+		return "", nil, http.StatusRequestEntityTooLarge,
+			errors.New("file exceeds the maximum allowed size of 10 MB")
+	}
+
+	return fileName, content, http.StatusOK, nil
+}
+
 func isSupportedDocument(extension string) bool {
-	switch extension {
+	switch strings.ToLower(extension) {
 	case ".pdf", ".docx", ".txt":
 		return true
 	default:
@@ -215,6 +336,19 @@ func isValidLength(length SummaryLength) bool {
 		return true
 	default:
 		return false
+	}
+}
+
+func detectContentType(extension string) string {
+	switch strings.ToLower(extension) {
+	case ".pdf":
+		return "application/pdf"
+	case ".docx":
+		return "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+	case ".txt":
+		return "text/plain"
+	default:
+		return "application/octet-stream"
 	}
 }
 
