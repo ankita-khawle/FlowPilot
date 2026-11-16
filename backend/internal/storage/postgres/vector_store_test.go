@@ -85,3 +85,37 @@ func TestFormatVectorPreservesValues(t *testing.T) {
 		t.Fatal("original vector was unexpectedly modified")
 	}
 }
+
+func TestSearchValidatesArguments(t *testing.T) {
+	store := &VectorStore{dimensions: 3}
+
+	_, err := store.Search(
+		t.Context(),
+		[]float32{0.1, 0.2, 0.3},
+		"",
+		5,
+	)
+	if !errors.Is(err, rag.ErrEmptyDocumentID) {
+		t.Fatalf("expected ErrEmptyDocumentID, got %v", err)
+	}
+
+	_, err = store.Search(
+		t.Context(),
+		[]float32{0.1, 0.2, 0.3},
+		"doc-123",
+		0,
+	)
+	if !errors.Is(err, rag.ErrInvalidSearchLimit) {
+		t.Fatalf("expected ErrInvalidSearchLimit, got %v", err)
+	}
+
+	_, err = store.Search(
+		t.Context(),
+		[]float32{0.1, 0.2},
+		"doc-123",
+		5,
+	)
+	if !errors.Is(err, rag.ErrInvalidVector) {
+		t.Fatalf("expected ErrInvalidVector, got %v", err)
+	}
+}

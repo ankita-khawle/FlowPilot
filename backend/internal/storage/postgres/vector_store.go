@@ -115,8 +115,13 @@ func (s *VectorStore) UpsertChunks(
 func (s *VectorStore) Search(
 	ctx context.Context,
 	queryVector []float32,
+	documentID string,
 	limit int,
 ) ([]rag.ChunkMatch, error) {
+	if strings.TrimSpace(documentID) == "" {
+		return nil, rag.ErrEmptyDocumentID
+	}
+
 	if limit <= 0 {
 		return nil, rag.ErrInvalidSearchLimit
 	}
@@ -137,9 +142,10 @@ func (s *VectorStore) Search(
 			end_char,
 			1 - (embedding <=> $1::vector) AS similarity
 		FROM document_chunks
+		WHERE document_id = $2
 		ORDER BY embedding <=> $1::vector
-		LIMIT $2
-	`, vector, limit)
+		LIMIT $3
+	`, vector, documentID, limit)
 	if err != nil {
 		return nil, fmt.Errorf("search document vectors: %w", err)
 	}
@@ -151,7 +157,7 @@ func (s *VectorStore) Search(
 		var match rag.ChunkMatch
 		var pageNumber *int
 
-		err := rows.Scan(
+		if err := rows.Scan(
 			&match.Chunk.ID,
 			&match.Chunk.DocumentID,
 			&match.Chunk.Index,
@@ -160,8 +166,7 @@ func (s *VectorStore) Search(
 			&match.Chunk.StartChar,
 			&match.Chunk.EndChar,
 			&match.Similarity,
-		)
-		if err != nil {
+		); err != nil {
 			return nil, fmt.Errorf("scan vector search result: %w", err)
 		}
 

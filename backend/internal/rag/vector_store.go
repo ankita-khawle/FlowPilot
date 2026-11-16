@@ -9,6 +9,7 @@ var (
 	ErrInvalidVector       = errors.New("invalid embedding vector")
 	ErrVectorCountMismatch = errors.New("chunk and vector counts do not match")
 	ErrInvalidSearchLimit  = errors.New("search limit must be greater than zero")
+	ErrEmptyDocumentID     = errors.New("document ID is required for retrieval")
 )
 
 type ChunkMatch struct {
@@ -26,6 +27,7 @@ type VectorStore interface {
 	Search(
 		ctx context.Context,
 		queryVector []float32,
+		documentID string,
 		limit int,
 	) ([]ChunkMatch, error)
 }
