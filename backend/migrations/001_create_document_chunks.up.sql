@@ -13,15 +13,13 @@ CREATE TABLE IF NOT EXISTS document_chunks (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
     CONSTRAINT document_chunks_document_index_unique
-        UNIQUE (document_id, chunk_index),
-
-    CONSTRAINT document_chunks_valid_offsets
-        CHECK (start_char >= 0 AND end_char > start_char)
+        UNIQUE (document_id, chunk_index)
 );
 
 CREATE INDEX IF NOT EXISTS idx_document_chunks_document_id
-    ON document_chunks(document_id);
+    ON document_chunks (document_id);
 
+-- Supports approximate nearest-neighbor vector search.
 CREATE INDEX IF NOT EXISTS idx_document_chunks_embedding
     ON document_chunks
     USING hnsw (embedding vector_cosine_ops);

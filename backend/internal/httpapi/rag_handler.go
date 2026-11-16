@@ -183,7 +183,7 @@ func readRAGUpload(
 		return "", nil, http.StatusBadRequest, errors.New("invalid file name")
 	}
 
-	if !isSupportedDocument(fileName) {
+	if !isSupportedDocument(filepath.Ext(fileName)) {
 		return "", nil, http.StatusBadRequest, errors.New("unsupported document format")
 	}
 

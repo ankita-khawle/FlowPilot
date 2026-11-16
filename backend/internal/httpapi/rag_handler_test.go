@@ -162,3 +162,28 @@ func TestRAGAskHandlerUnavailable(t *testing.T) {
 		t.Fatalf("expected 503, got %d", recorder.Code)
 	}
 }
+
+func TestIsSupportedDocument(t *testing.T) {
+    tests := []struct {
+        name      string
+        extension string
+        want      bool
+    }{
+        {"PDF", ".pdf", true},
+        {"DOCX", ".docx", true},
+        {"TXT", ".txt", true},
+        {"uppercase TXT", ".TXT", true},
+        {"unsupported format", ".exe", false},
+        {"empty extension", "", false},
+    }
+
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            got := isSupportedDocument(tt.extension)
+            if got != tt.want {
+                t.Errorf("isSupportedDocument(%q) = %v, want %v",
+                    tt.extension, got, tt.want)
+            }
+        })
+    }
+}
