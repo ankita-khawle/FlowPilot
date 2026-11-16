@@ -89,19 +89,17 @@ func NewRouter() http.Handler {
 	)
 }
 
-// Retain compatibility with the existing document processor.
-func NewRouterWithDocumentProcessor(
-	processor DocumentProcessor,
-) http.Handler {
-	return NewRouterWithServices(
-		document.NewService(document.NewParser()),
-		processor,
-	)
-}
-
 func NewRouterWithServices(
 	extractor DocumentExtractor,
 	processor DocumentProcessor,
+) http.Handler {
+	return NewRouterWithRAGPipeline(extractor, processor, nil)
+}
+
+func NewRouterWithRAGPipeline(
+	extractor DocumentExtractor,
+	processor DocumentProcessor,
+	pipeline RAGPipeline,
 ) http.Handler {
 
 	mux := http.NewServeMux()
@@ -116,6 +114,21 @@ func NewRouterWithServices(
 	mux.HandleFunc(
 		"POST /api/documents/summarize",
 		documentSummarize(processor),
+	)
+
+	// Register the RAG routes.
+	handler := &Handler{
+		ragPipeline: pipeline,
+	}
+
+	mux.HandleFunc(
+		"POST /api/rag/documents",
+		handler.ragUpload,
+	)
+
+	mux.HandleFunc(
+		"POST /api/rag/documents/{documentID}/ask",
+		handler.ragAsk,
 	)
 
 	return mux
