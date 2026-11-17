@@ -24,3 +24,8 @@ export interface Citation {
 export interface ApiErrorResponse {
   error: string;
 }
+
+export interface AskDocumentRequest {
+  question: string;
+  limit?: number;
+}

@@ -1,7 +1,21 @@
-import { useRef, useState, type DragEvent } from 'react';
-import { uploadDocument } from '../services/api/documentService';
+import {
+  useRef,
+  useState,
+  type DragEvent,
+  type FormEvent,
+} from 'react';
+
+import {
+  askDocument,
+  uploadDocument,
+} from '../services/api/documentService';
+
 import { ApiError } from '../services/api/apiClient';
-import type { IngestResult } from '../services/api/types';
+
+import type {
+  Citation,
+  IngestResult,
+} from '../services/api/types';
 
 import {
   ArrowUpRight,
@@ -9,12 +23,21 @@ import {
   Sparkles,
   Workflow,
   X,
+  MessageCircle,
+  Send,
+  BookOpen,
 } from 'lucide-react';
 
 import './App.css';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const SUPPORTED_TYPES = ['.pdf', '.docx', '.txt'];
+
+interface ConversationItem {
+  question: string;
+  answer: string;
+  citations: Citation[];
+}
 
 export default function App() {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -23,7 +46,10 @@ export default function App() {
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [ingestResult, setIngestResult] = useState<IngestResult | null>(null);
-
+  const [question, setQuestion] = useState('');
+  const [asking, setAsking] = useState(false);
+  const [askError, setAskError] = useState('');
+  const [messages, setMessages] = useState<ConversationItem[]>([]);
   const selectFile = (selectedFile?: File) => {
     if (!selectedFile) return;
 
@@ -41,7 +67,11 @@ export default function App() {
 
     setError('');
     setIngestResult(null);
+    setMessages([]);
+    setQuestion('');
+    setAskError('');
     setFile(selectedFile);
+
   };
 
   const handleUpload = async () => {
@@ -88,6 +118,64 @@ export default function App() {
       setUploading(false);
     }
   };
+
+  const handleAsk = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!ingestResult || !question.trim() || asking) return;
+
+    const currentQuestion = question.trim();
+
+    setAsking(true);
+    setAskError('');
+
+    try {
+      const response = await askDocument(
+        ingestResult.document_id,
+        {
+          question: currentQuestion,
+          limit: 5,
+        }
+      );
+
+      setMessages((previous) => [
+        ...previous,
+        {
+          question: currentQuestion,
+          answer: response.answer,
+          citations: response.citations,
+        },
+      ]);
+
+      setQuestion('');
+    } catch (err) {
+      if (err instanceof ApiError) {
+        if (err.code === 'NETWORK' || err.code === 'TIMEOUT') {
+          setAskError(err.message);
+        } else {
+          switch (err.status) {
+            case 400:
+              setAskError('Please check your question and try again.');
+              break;
+            case 503:
+              setAskError('The AI service is temporarily unavailable.');
+              break;
+            default:
+              setAskError('We could not generate an answer. Please try again.');
+          }
+        }
+      } else {
+        setAskError(
+          err instanceof Error
+            ? err.message
+            : 'Something unexpected happened.'
+        );
+      }
+    } finally {
+      setAsking(false);
+    }
+  };
+
   const handleDrop = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     setDragging(false);
@@ -98,6 +186,10 @@ export default function App() {
     setFile(null);
     setError('');
     setIngestResult(null);
+
+    setMessages([]);
+    setQuestion('');
+    setAskError('');
 
     if (inputRef.current) {
       inputRef.current.value = '';
@@ -266,6 +358,131 @@ export default function App() {
 
           <span>AI-powered · Source-grounded · Yours to explore</span>
         </div>
+        {ingestResult && (
+          <section className="qa-section">
+            <div className="qa-heading">
+              <div>
+                <div className="eyebrow">
+                  <MessageCircle size={14} />
+                  DOCUMENT CONVERSATION
+                </div>
+
+                <h2>Now, let's get curious.</h2>
+
+                <p>
+                  Ask questions and explore the information in your document.
+                </p>
+              </div>
+
+              <span className="qa-document-badge">
+                <FileText size={14} />
+                {ingestResult.file_name}
+              </span>
+            </div>
+
+            {messages.length > 0 && (
+              <div className="conversation">
+                {messages.map((message, index) => (
+                  <article className="conversation-item" key={index}>
+                    <div className="user-question">
+                      <div className="message-avatar">
+                        <MessageCircle size={16} />
+                      </div>
+
+                      <p>{message.question}</p>
+                    </div>
+
+                    <div className="ai-answer">
+                      <div className="answer-heading">
+                        <Sparkles size={17} />
+                        FlowPilot's answer
+                      </div>
+
+                      <p className="answer-text">{message.answer}</p>
+
+                      {message.citations.length > 0 && (
+                        <div className="citations">
+                          <div className="citations-heading">
+                            <BookOpen size={15} />
+                            Supporting sources
+                          </div>
+
+                          {message.citations.map((citation, citationIndex) => (
+                            <div
+                              className="citation-card"
+                              key={`${index}-${citationIndex}`}
+                            >
+                              <div className="citation-meta">
+                                <FileText size={14} />
+                                <strong>{citation.source}</strong>
+
+                                {citation.page !== undefined && (
+                                  <span className="citation-page">
+                                    Page {citation.page}
+                                  </span>
+                                )}
+
+                                {citation.field && (
+                                  <span className="citation-page">
+                                    {citation.field}
+                                  </span>
+                                )}
+                              </div>
+
+                              {citation.quote && (
+                                <blockquote>
+                                  "{citation.quote}"
+                                </blockquote>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+
+            {asking && (
+              <div className="answer-loading" role="status">
+                <Sparkles size={17} />
+                Looking through your document...
+              </div>
+            )}
+
+            {askError && (
+              <div className="qa-error" role="alert">
+                {askError}
+              </div>
+            )}
+
+            <form className="question-form" onSubmit={handleAsk}>
+              <textarea
+                value={question}
+                onChange={(event) => setQuestion(event.target.value)}
+                placeholder="Ask something about your document..."
+                rows={2}
+                maxLength={4000}
+                disabled={asking}
+                aria-label="Ask your document a question"
+              />
+
+              <div className="question-form-footer">
+                <span>Answers are grounded in your uploaded document.</span>
+
+                <button
+                  className="ask-button"
+                  type="submit"
+                  disabled={!question.trim() || asking}
+                >
+                  {asking ? 'Thinking...' : 'Ask FlowPilot'}
+                  <Send size={15} />
+                </button>
+              </div>
+            </form>
+          </section>
+        )}
         {ingestResult && (
           <div className="upload-success" role="status">
             <div className="success-heading">
