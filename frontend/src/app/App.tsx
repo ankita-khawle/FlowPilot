@@ -1,4 +1,8 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, type DragEvent } from 'react';
+import { uploadDocument } from '../services/api/documentService';
+import { ApiError } from '../services/api/apiClient';
+import type { IngestResult } from '../services/api/types';
+
 import {
   ArrowUpRight,
   FileText,
@@ -17,6 +21,8 @@ export default function App() {
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState('');
   const [dragging, setDragging] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [ingestResult, setIngestResult] = useState<IngestResult | null>(null);
 
   const selectFile = (selectedFile?: File) => {
     if (!selectedFile) return;
@@ -34,10 +40,55 @@ export default function App() {
     }
 
     setError('');
+    setIngestResult(null);
     setFile(selectedFile);
   };
 
-  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
+  const handleUpload = async () => {
+    if (!file || uploading) return;
+
+    setUploading(true);
+    setError('');
+    setIngestResult(null);
+
+    try {
+      const result = await uploadDocument(file);
+
+      setIngestResult(result);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        if (err.code === 'NETWORK' || err.code === 'TIMEOUT') {
+          setError(err.message);
+        } else {
+          switch (err.status) {
+            case 400:
+              setError('This document could not be accepted. Please check the file and try again.');
+              break;
+
+            case 413:
+              setError('Your document is too large. Please upload a file smaller than 10 MB.');
+              break;
+
+            case 422:
+              setError('We could not extract readable content from this document. Try another file.');
+              break;
+
+            case 503:
+              setError('FlowPilot is temporarily unavailable. Please try again shortly.');
+              break;
+
+            default:
+              setError('We could not process your document. Please try again.');
+          }
+        }
+      } else {
+        setError('Something unexpected happened. Please try again.');
+      }
+    } finally {
+      setUploading(false);
+    }
+  };
+  const handleDrop = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     setDragging(false);
     selectFile(event.dataTransfer.files[0]);
@@ -46,6 +97,7 @@ export default function App() {
   const clearFile = () => {
     setFile(null);
     setError('');
+    setIngestResult(null);
 
     if (inputRef.current) {
       inputRef.current.value = '';
@@ -160,13 +212,20 @@ export default function App() {
 
               <div className="selected-file-info">
                 <strong>{file.name}</strong>
-                <span>{(file.size / 1024 / 1024).toFixed(2)} MB · Ready to process</span>
+                <span>
+                  {ingestResult
+                    ? 'Successfully processed'
+                    : uploading
+                      ? 'Uploading and processing...'
+                      : `${(file.size / 1024 / 1024).toFixed(2)} MB · Ready to process`}
+                </span>
               </div>
 
               <button
                 className="remove-file"
                 onClick={clearFile}
                 aria-label="Remove selected file"
+                disabled={uploading}
               >
                 <X size={17} />
               </button>
@@ -191,17 +250,43 @@ export default function App() {
         <div className="upload-action">
           <button
             className="primary-button"
-            disabled={!file}
-            onClick={() => {
-              // Document ingestion will be connected in the next commit.
-            }}
+            disabled={!file || uploading || !!ingestResult}
+            onClick={handleUpload}
           >
-            Let's make sense of it
+            {uploading
+              ? 'Making sense of your document...'
+              : ingestResult
+                ? 'Document processed'
+                : error
+                  ? 'Try again'
+                  : "Let's make sense of it"}
+
             <ArrowUpRight size={17} />
           </button>
 
           <span>AI-powered · Source-grounded · Yours to explore</span>
         </div>
+        {ingestResult && (
+          <div className="upload-success" role="status">
+            <div className="success-heading">
+              <Sparkles size={18} />
+              Your document is ready!
+            </div>
+
+            <p>
+              Successfully processed {ingestResult.file_name}.
+            </p>
+
+            <div className="document-stats">
+              <span>{ingestResult.word_count.toLocaleString()} words</span>
+              <span>{ingestResult.chunk_count} chunks</span>
+              <span>
+                {ingestResult.character_count.toLocaleString()} characters
+              </span>
+            </div>
+          </div>
+        )}
+        
       </section>
 
       <section className="process-section">

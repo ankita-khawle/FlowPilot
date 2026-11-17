@@ -672,3 +672,66 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+
+
+.upload-success {
+  margin: 24px auto 0;
+  max-width: 520px;
+  padding: 20px;
+  border: 1px solid rgba(104, 130, 74, 0.25);
+  border-radius: 16px;
+  background: rgba(220, 237, 190, 0.3);
+  animation: success-appear 300ms ease-out;
+}
+
+.success-heading {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-weight: 700;
+  color: #46334f;
+}
+
+.upload-success p {
+  margin: 9px 0 14px;
+  font-size: 14px;
+  color: #635b65;
+}
+
+.document-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.document-stats span {
+  padding: 7px 11px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.7);
+  color: #46334f;
+  font-size: 12px;
+}
+
+.primary-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+@keyframes success-appear {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .upload-success {
+    animation: none;
+  }
+}
