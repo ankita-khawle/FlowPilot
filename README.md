@@ -1,5 +1,7 @@
 # FlowPilot 🚀
 
+<img width="1062" height="715" alt="Screenshot 2026-11-17 at 11 16 02 PM" src="https://github.com/user-attachments/assets/f52d9af5-35a7-4770-b76f-33425282d0b5" />
+
 **Upload a document. Let AI do the reading. Get the insights without the boring bits.**
 
 FlowPilot is an AI-powered document intelligence platform that uses Large Language Models (LLMs) and Retrieval-Augmented Generation (RAG) to analyse uploaded documents, extract meaningful information, and generate contextual summaries in a quirky, engaging tone.
