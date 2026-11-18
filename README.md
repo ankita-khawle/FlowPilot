@@ -1,6 +1,12 @@
 # FlowPilot 🚀
 
-<img width="1062" height="715" alt="Screenshot 2026-11-17 at 11 16 02 PM" src="https://github.com/user-attachments/assets/f52d9af5-35a7-4770-b76f-33425282d0b5" />
+
+
+https://github.com/user-attachments/assets/f67b5a00-98f4-4482-b538-b10b46a4e02e
+
+
+
+
 
 **Upload a document. Let AI do the reading. Get the insights without the boring bits.**
 
